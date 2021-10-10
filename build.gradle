@@ -1,0 +1,82 @@
+plugins {
+	id 'java-library'
+	id 'maven-publish'
+	id 'signing'
+}
+
+group = 'org.nekosoft.pdffer'
+version = '1.0.0'
+sourceCompatibility = '11'
+
+repositories {
+	mavenCentral()
+}
+
+java {
+	withJavadocJar()
+	withSourcesJar()
+}
+
+dependencies {
+	implementation project(':pdffer-template')
+	implementation 'com.fasterxml.jackson.core:jackson-databind:2.5.3'
+	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.12.4'
+	compileOnly('com.itextpdf:itext7-core:7.1.16') {
+		because 'brings in all needed dependencies but does not work from POM file as a transitive dependency'
+	}
+	api(group: 'com.itextpdf', name: 'itext7-core', version: '7.1.16', ext: 'pom') {
+		because 'does not bring in all needed dependencies but works from POM file as a transitive dependency'
+	}
+}
+
+test {
+	useJUnitPlatform()
+}
+
+ext.isReleaseVersion = !version.endsWith("-SNAPSHOT")
+
+publishing {
+	repositories {
+		maven {
+			def releaseRepo = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
+			def snapshotRepo = "https://s01.oss.sonatype.org/content/repositories/snapshots/"
+			url = isReleaseVersion ? releaseRepo : snapshotRepo
+			credentials {
+				username = project.hasProperty('ossrhUsername') ? project.getProperties().get('ossrhUsername') : System.getenv('OSSRH_USERNAME')
+				password = project.hasProperty('ossrhPassword') ? project.getProperties().get('ossrhPassword') : System.getenv('OSSRH_PASSWORD')
+			}
+		}
+	}
+
+	publications {
+		mavenJava(MavenPublication) {
+			pom {
+				description = 'Basic PDF templates created with iText for use with Spring Boot PDFfer'
+				url = 'https://pdffer.nekosoft.org/'
+				from components.java
+				// Removing of classifier not needed here as the project does not include the Spring Boot plugins
+//				artifact (jar) {
+//					classifier = null
+//				}
+				licenses {
+					license {
+						name = 'The Apache License, Version 2.0'
+						url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+					}
+				}
+				scm {
+					connection = 'scm:git:git@github.com:PDFfer/nekosoft-itext-templates.git'
+					developerConnection = 'scm:git:git@github.com:PDFfer/nekosoft-itext-templates.git'
+					url = 'https://github.com/PDFfer/nekosoft-itext-templates'
+				}
+			}
+		}
+	}
+}
+
+signing {
+	sign publishing.publications.mavenJava
+}
+tasks.withType(Sign) {
+	onlyIf { isReleaseVersion }
+}
